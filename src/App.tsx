@@ -1,20 +1,8 @@
 import React from 'react'
 import { Store } from './Store'
-import { IAction } from './interfaces'
+import { IAction, IEpisode } from './interfaces'
 
-export interface IEpisode {
-  airdate: string
-  airstamp: string
-  airtime: string
-  id: number
-  image: {medium: string, original: string}
-  name: string
-  number: number
-  runtime: number
-  season: number
-  summary: string
-  url: string
-}
+const EpisodeList = React.lazy<any>(() => import('./EpisodesList'))
 
 export default function App():JSX.Element {
   const {state, dispatch}  = React.useContext(Store)
@@ -31,33 +19,50 @@ export default function App():JSX.Element {
     })
   }
 
-  const toggleFaVAction = (episode: IEpisode): IAction => dispatch({
-    type: 'ADD_FAV',
-    payload: episode
-  })
+  const toggleFavAction = (episode: IEpisode): IAction => {
+    const episodeInFav = state.favourites.includes(episode);
+    let dispatchObj = {
+      type: 'ADD_FAV',
+      payload: episode
+    }
+    if(episodeInFav) {
+      const favWithoutEpisode = state.favourites.filter((fav: IEpisode) => fav.id !== episode.id)
+      dispatchObj = {
+        type: 'REMOVE_FAV',
+        payload: favWithoutEpisode
+      }
+    }
+    return dispatch(dispatchObj)
+  }
+
+  interface IEpisodeProps {
+    episodes: Array<IEpisode>,
+    toggleFavAction: (episode: IEpisode) => IAction,
+    favourites: Array<IEpisode>
+  }
+
+  const props: IEpisodeProps = {
+    episodes: state.episodes,
+    toggleFavAction,
+    favourites: state.favourites
+  }
 
   return (
     <React.Fragment>
       <header className='header'>
-        <h1>Rick and Morty</h1>
-        <p>Pick your favourite episode!!!</p>
+        <div>
+          <h1>Rick and Morty</h1>
+          <p>Pick your favourite episode!!!</p>
+        </div>
+        <div>
+          Favourite(s): {state.favourites.length}
+        </div>
       </header>
-      <section className='episode-layout'>
-        {
-          state.episodes.map( (episode: IEpisode) => {
-            return (
-              <section key={episode.id} className='episode-box'>
-                <img src = {episode.image.medium} alt = {`Rick and Morty ${episode.name}`} />
-                <div>{episode.name}</div>
-                <section>
-                  <div>Season: {episode.season} Number: {episode.number}</div>
-                  <button type='button' onClick={() => toggleFaVAction(episode)}>Fav</button>
-                </section>
-              </section>
-            )
-          })
-        }
-      </section>
+      <React.Suspense fallback={<div>loading...</div>}>
+        <section className='episode-layout'>
+          <EpisodeList {...props} />
+        </section>
+      </React.Suspense>
     </React.Fragment>
   )
 }
